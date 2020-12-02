@@ -1,0 +1,203 @@
+---
+title: "Vorlage Skalenberechnung IRT / FA"
+author: "Martin Lacher"
+date: "30. November 2020"
+output:
+  # prettydoc macht wunderschöne html-Dokumente, muss beim ersten Aufruf installiert werden.
+  prettydoc::html_pretty: 
+    theme: cayman
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r, echo=FALSE}
+library(knitr)
+```
+
+## Einleitung
+
+Dieses Dokument beschreibt mögliche Vorgehensweisen zur Berechnung von Skalenwerten mithilfe von IRT- und FA-Methoden am Beispiel des Post-Wissenstest (WPO) der Vorstudie des HeLPS Teilprojekts 5 (Martin Lacher). Zweck der Vorlage ist die Demonstration der Möglichkeiten von RStudio und Beschreibung der Befehle und Verfahren vom Einlesen und Aufbereiten der Daten über die Auswertung (Berechnungsverfahren und Interpretation) bis zu deren Präsentation als Diagramme.  
+Sie gliedert sich in die folgenden Abschnitte:
+
+* Installation RStudio
+* Installation Packages
+* Initialisation Packages
+* Daten in RStudio laden
+* Daten bereinigen und aufbereiten
+* Relevante statistische Kennwerte der Daten berechnen
+* Berechnung der Skalenwerte nach klassischer Faktoranalyse
+* Berechnung der Skalenwerte nach Graded Response Model
+* Darstellung der Daten in Diagrammen
+* Abschliessende Bemerkungen
+
+## Vorarbeiten
+### Installation RStudio
+RStudio kann von dieser Webseite heruntergeladen werden: https://rstudio.com/products/rstudio/download/. Für die meisten Zwecke ist die Desktop-Gratisversion am besten geeignet.
+RStudio ist eine komfortable Benutzeroberfläche (sogenannte IDE) für die Programmiersprache R, die automatisch zusammen mit RStudio installiert wird. Bei bereits früher einmal erfolgten Installation von R bzw. RStudio muss man unbedingt darauf achten, dass die aktuelle Version von R installiert ist und sonst ggf. updaten (siehe https://uvastatlab.github.io/phdplus/installR.html), damit alle Packages funktionieren.
+
+### Installation Packages
+
+RStudio arbeitet mit sogenannte *Packages*. Diese erweitern die Basis-Programmiersprache R um mächtige Fähigkeiten. In grösseren Berechnungsprojekten ist es oft unumgänglich, eine grössere Zahl dieser Packages zu verwenden.
+Die allermeisten Packages sind zentral im Internet-Repositorium CRAN abgelegt und müssen vor einer ersten Benutzung in RStudio installiert werden. Dies geschieht mit dem Befehl `install.packages("<name>")` direkt in der Konsole (unten links, wo die Textausgabe von R erfolgt), wobei <name> natürlich für den Namen des Packages steht. Die `<>` werden nicht eingegeben und die Gross-/Kleinschreibung ist relevant.  
+Für diese Vorlage müssen die folgenden Packages installiert werden:  
+
+* tidyverse
+* psycho
+* rio
+* lavaan
+* ...
+
+## Schreiben des Codes
+### Arbeiten in Projekten
+Es lohnt sich, in RStudio in *Projekten* zu arbeiten. Dazu geht man ins Menu File / New Project... und wählt ein neues Verzeichnis (new directory), wo man alle Daten und Source-Dateien ablegen kann. Arbeitet man in Projekten, hat man im Allgemeinen eine besser organisierte Dateiablage und weniger "Sorgen" mit falschen Pfadangaben.
+Wenn das Projekt erstellt wurde, kann mein eine neue R-Datei (File / New File / R Script) erstellen wo der nun folgende Code abgelegt wird.
+
+### Initialisation Packages
+In einem ersten Schritt werden die installierten Packages ins System geladen. Das geschieht mit dem folgenden Befehlsblock.
+
+```{r Packages initialisieren Code, eval=FALSE}
+library(tidyverse)
+library(psych)
+library(rio)
+```
+Der zu folgendem Output in der Konsole führt:
+```{r Packages initialisieren Output, echo=FALSE}
+library(tidyverse)
+library(psych)
+library(rio)
+```
+## Daten in RStudio laden
+Die Daten werden in RStudio am einfachsten mithilfe des Packages *rio* geladen. Damit kann mit einem einzigen Beehl eine Vielzahl unterschiedlicher Dateiformate, von SPSS über CSV bis Excel, gelesen werden:
+
+```{r Daten laden}
+datWPO <- rio::import("data/raw/Vorstudie_WPO_alle.sav")
+```
+Die Daten werden als Tabelle aus der SPSS-Datei `Vorstudie_WPO_alle.sav` geladen, die sich (relativ zum Projektverzeichnis!) im Ordner data/raw befindet. in die Variable datWPO geladen. Etwas ungewöhnlich ist der Zuweisungsoperator `<-`, er entspricht dem in anderen Programmiersprachen oft verwendeten `=` oder `:=`. Der zweifache Doppelpunkt `::` ist zuständig für den Zugriff auf eine Funktion (hier `import`) innerhalb eines spezifischen Packages (hier `rio`). Meist kann er weggelassen werden, falls jedoch in mehreren Packages dieselbe Funktion vorkommt, wir eine Funktion "verborgen" und kann nur über den `::`-Operator darauf zugreifen.
+
+Die importierte Tabelle ist folgendermassen aufgebaut (es werden nur die ersten 5 Zeilen angezeigt):
+```{r Datentabelle, echo=FALSE}
+kable(datWPO[1:5,],caption="Tabelle datWPO")
+```
+
+### Daten bereinigen und aufbereiten
+Als nächstes werden diese Rohdaten bereinigt und für die Berechnungen aufbereitet. Dazu sind mehrere Schritte erforderlich. 
+Als erstes muss man sich überlegen, wie man mit ungültigen Werten (die in R meist mit `NA` bezeichnet werden) umgeht. Es gibt hierfür verschiedene Methoden, vom Streichen der Fälle mit ungültigen Daten über Nullsetzen bis zur komplizierten Inputation. Je nach Projekt muss man sich gut überlegen, wie man am besten vorgeht. In diesen Beispieldaten kommen lediglich in einem Fall (Datensatz) NA-Werte vor, dafür gleich in allen Items. Damit können hier einfach alle Fälle (also dieser eine) mit ungültigen Daten entfernt werden. Dazu dient `na.omit()` (siehe untere Befehlszeile am Schluss).  
+Gleichzeitig werden auch nur die Spalten aus der Datentabelle übernommen, die für die Berechnung wirklich verwendet werden, also die Items der Skala (mit `starts_with("WPO")` werden im `select`-Befehl die Spalten, die mit WPO beginnen ausgewählt).  
+Weil damit die Verknüpfung der Daten mit der Person (Spalte `TN_ID`) verlorengeht, wird aber zuerst eine Datentabelle `datWPOHeader` erstellt, die genau diese Verknüpfung später wieder erlaubt. In diesem Header werden die ursprünglichen Zeilennummern in der Spalte `OrgRow`, die Zeilennummern der bereinigten Tabelle (ohne NA) in `CleanRow` und schliesslich auch die Kürzel der Lehrperson und die Teilnehmer-ID gespeichert. Der sogenannte "Pipe-Operator" `%>%` reicht dabei die jeweilige Datentabelle (in aktuellem Status!) an den nächsten Befehl weiter. Dadurch wird der Code übersichtlich und kurz und umgeht x-fach verschachtelte Funktionen. 
+```{r Datenbereinigung Code}
+datWPOheader <- datWPO %>% na.omit() %>% 
+                rownames_to_column(var = "OrgRow") %>% 
+                remove_rownames(.) %>% 
+                rownames_to_column(var = "CleanRow") %>% 
+                select("CleanRow","OrgRow","Lehrperson","TN_ID")
+
+datWPOonly <- datWPO %>% dplyr::select(starts_with("WPO")) %>% na.omit()
+```
+
+```{r Header und ohne Header, echo=FALSE}
+kable(datWPOheader[1:5,],caption="Tabelle datWPOheader")
+kable(datWPOonly[1:5,],,caption="Tabelle datWPOonly")
+```
+
+Bei den vorliegenden Beispieldaten weisen die Items unterschiedlich viele Stufen auf. Für gewisse Berechnungen kann es vorteilhaft sein, die Werte zu normieren, d.h. jedes Item erhält den Maximalwert 1, die Zwischenwerte werden entsprechend proportional skaliert (siehe folgender Code). Es gibt auch Auswertungen (z.B. das Graded Response Model, siehe unten), wo die Normierung keine Rolle spielt.
+
+```{r Normierung der Daten}
+datWPOnorm <- datWPOonly %>% transmute(
+  WPO_1_norm = WPO_1 / 6, # Normiere WPO-1, max = 6
+  WPO_2_norm = WPO_2 / 1, # Normiere WPO-2, max = 1
+  WPO_3_norm = WPO_3 / 2, # Normiere WPO-3, max = 2
+  WPO_4_norm = WPO_4 / 12, # Normiere WPO-4, max = 12
+  WPO_5_norm = WPO_5 / 2, # Normiere WPO-5, max = 2
+  WPO_6_norm = WPO_6 / 3, # Normiere WPO-6, max = 3
+  WPO_7_norm = WPO_7 / 1, # Normiere WPO-7, max = 1
+  WPO_8_norm = WPO_8 / 1, # Normiere WPO-8, max = 1
+  WPO_9_norm = WPO_9 / 2, # Normiere WPO-9, max = 2
+  WPO_10_norm = WPO_10 / 1, # Normiere WPO-10, max = 1
+  WPO_11_norm = WPO_11 / 2, # Normiere WPO-11, max = 2
+  WPO_12_norm = WPO_12 / 2, # Normiere WPO-12, max = 2
+  WPO_13_norm = WPO_13 / 2, # Normiere WPO-13, max = 2
+)
+```
+
+```{r Datentabelle normiert, echo=FALSE}
+kable(datWPOnorm[1:5,],caption="Tabelle datWPOnorm")
+```
+
+### Relevante statistische Kennwerte der Daten berechnen
+Schliesslich können aus diesen Daten nun statistische Kennwerte errechnet werden. Die meisten befinden sich im Package `psych`.  
+Lohnenswert ist sicher ein Blick auf die Cronbach's Alpha der Items. Auch hier wird das package `psych` explizit angegeben, damit nicht auf irgendeine andere Funktion alpha zugegriffen wird.
+```{r Cronbachs Alpha}
+WPOcalpha <- psych::alpha(datWPOonly,check.keys = TRUE)
+```
+Die Ergebnisse werden in der Variable `WPOcalpha` gespeichert. Diese Variable ist (verglichen mit Variablen im traditionellen Sinn), ein komplexes "Konglomerat" aus verschiedenen Teilvariablen (hier sind es Tabellen), auf die mit dem Dollarzeichen `$` zugegriffen werden kann:
+
+Tabelle items.stats (Zugriff über `WPOcalpha$items.stats`): Item-Statistik der Skala in der Tabelle datWPOonly
+```{r Cronbach Itemstats, echo=FALSE}
+kable(WPOcalpha$item.stats,digits = 3)
+```
+
+Tabelle total (Zugriff über `WPOcalpha$total`): Cronbachs Alpha der gesamten Skala in datWPOonly
+```{r Cronbach total, echo=FALSE}
+kable(WPOcalpha$total,digits = 3)
+```
+
+Tabelle items.drop (Zugriff über `WPOcalpha$items.drop`): Dieselben Daten für die Skala, falls ein Item weggelassen wird
+```{r Cronbach drop, echo=FALSE}
+kable(WPOcalpha$alpha.drop,caption="Cronbachs Alpha der Items von datWPOonly",digits = 3)
+```
+Die exakten Bedeutungen der verschiedenen Werte erhält man, wenn man in der Konsole `?psych::alpha` eingibt.  
+
+Für die nachfolgende Berechnung des Graded Response Models ist die Eindimensionalität eine Voraussetzung. Wir testen deshalb die Daten daraufhin.
+In der Literatur gibt es dafür verschiedene beschriebene Verfahren. Hier werden drei angewendet:
+
+* Very Simply Structure vss (und gleichzeitig MAP)
+* Parallelenanalyse
+* CFA auf Eindimensionalität (alle Items laden auf denselben Faktor)
+
+```{r Eindimensionalität}
+#----------- Eindimensionalität testen --------------
+# very simple structure und MAP testen
+WPOvss <- vss(datWPOnorm)
+WPOvss
+
+# Parallelenanalyse
+WPOparallel <- fa.parallel(datWPOnorm, fa="both")
+
+# CFA mit Lavaan auf 1 Faktor
+library(lavaan)
+
+# Rohdaten
+WPO.model <- ' wpo =~ WPO_1 + WPO_2 + WPO_3 + WPO_4 + WPO_5 + 
+                      WPO_6 + WPO_7 + WPO_8 + WPO_9 + WPO_10 + 
+                      WPO_11 + WPO_12 + WPO_13'
+
+WPO.fit <- cfa(WPO.model,data=datWPOonly)
+summary(WPO.fit, fit.measures=TRUE)
+
+# Normierte Daten (Spolier: Kein Unterschied im fit)
+WPOnorm.model <- ' wpo =~ WPO_1_norm + WPO_2_norm + WPO_3_norm + WPO_4_norm + WPO_5_norm + 
+                      WPO_6_norm + WPO_7_norm + WPO_8_norm + WPO_9_norm + WPO_10_norm + 
+                      WPO_11_norm + WPO_12_norm + WPO_13_norm'
+
+WPOnorm.fit <- cfa(WPOnorm.model,data=datWPOnorm)
+summary(WPOnorm.fit, fit.measures=TRUE)
+```
+
+Jede Methode gibt unterschiedliche Kennwerte aus, die die Beurteilung der Annahme "die Daten sind eindimensional" erlauben. Bevor auf die Resultate eingegangen wird, soll auf dieser Stelle auf die Warnungen aufmerksam gemacht werden, die R ausgibt: Wir sehen z. B. bei der Funktion vss diese:
+
+```
+## Warning in fac(r = r, nfactors = nfactors, n.obs = n.obs, rotate = rotate, : An
+## ultra-Heywood case was detected. Examine the results carefully
+```
+Diese Warnungen sollten nicht ignorniert werden, sondern es muss eine genaue Analyse erfolgen, weshalb sie ausgegeben wurde.
+
+## Berechnung der Skalenwerte nach klassischer Faktoranalyse
+
+
+## Berechnung der Skalenwerte nach Graded Response Model
+## Darstellung der Daten in Diagrammen
+## Abschliessende Bemerkungen
+
+
