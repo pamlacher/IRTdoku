@@ -17,7 +17,7 @@ library(knitr)
 ```
 
 ## Einleitung
-
+Neuer Satz in der Einleitung
 Dieses Dokument beschreibt mögliche Vorgehensweisen zur Berechnung von Skalenwerten mithilfe von IRT- und FA-Methoden am Beispiel des Post-Wissenstest (WPO) der Vorstudie des HeLPS Teilprojekts 5 (Martin Lacher). Zweck der Vorlage ist die Demonstration der Möglichkeiten von RStudio und Beschreibung der Befehle und Verfahren vom Einlesen und Aufbereiten der Daten über die Auswertung (Berechnungsverfahren und Interpretation) bis zu deren Präsentation als Diagramme.  
 Sie gliedert sich in die folgenden Abschnitte:
 
