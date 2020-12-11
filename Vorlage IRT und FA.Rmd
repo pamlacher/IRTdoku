@@ -3,20 +3,23 @@ title: "Vorlage Skalenberechnung IRT / FA"
 author: "Martin Lacher"
 date: "30. November 2020"
 output:
+  html_document:
+    theme: paper
+    css: style.css #Im CSS wird die Font-Size für die allgemeine Schrift auf 12pt gestellt
+  
+  
   # prettydoc macht wunderschöne html-Dokumente, muss beim ersten Aufruf installiert werden.
-  prettydoc::html_pretty: 
-    theme: cayman
-    highlight: github
+#  prettydoc::html_pretty: 
+#    theme: cayman
+#    highlight: github
 ---
 
 ```{r setup, include=FALSE}
+library(knitr)
 knitr::opts_chunk$set(echo = TRUE)
 ```
-```{r, echo=FALSE}
-library(knitr)
-```
 
-## Einleitung
+# Einleitung
 Neuer Satz in der Einleitung
 Dieses Dokument beschreibt mögliche Vorgehensweisen zur Berechnung von Skalenwerten mithilfe von IRT- und FA-Methoden am Beispiel des Post-Wissenstest (WPO) der Vorstudie des HeLPS Teilprojekts 5 (Martin Lacher). Zweck der Vorlage ist die Demonstration der Möglichkeiten von RStudio und Beschreibung der Befehle und Verfahren vom Einlesen und Aufbereiten der Daten über die Auswertung (Berechnungsverfahren und Interpretation) bis zu deren Präsentation als Diagramme.  
 Sie gliedert sich in die folgenden Abschnitte:
@@ -32,12 +35,12 @@ Sie gliedert sich in die folgenden Abschnitte:
 * Darstellung der Daten in Diagrammen
 * Abschliessende Bemerkungen
 
-## Vorarbeiten
-### Installation RStudio
+# Vorarbeiten
+## Installation RStudio
 RStudio kann von dieser Webseite heruntergeladen werden: https://rstudio.com/products/rstudio/download/. Für die meisten Zwecke ist die Desktop-Gratisversion am besten geeignet.
 RStudio ist eine komfortable Benutzeroberfläche (sogenannte IDE) für die Programmiersprache R, die automatisch zusammen mit RStudio installiert wird. Bei bereits früher einmal erfolgten Installation von R bzw. RStudio muss man unbedingt darauf achten, dass die aktuelle Version von R installiert ist und sonst ggf. updaten (siehe https://uvastatlab.github.io/phdplus/installR.html), damit alle Packages funktionieren.
 
-### Installation Packages
+## Installation Packages
 
 RStudio arbeitet mit sogenannte *Packages*. Diese erweitern die Basis-Programmiersprache R um mächtige Fähigkeiten. In grösseren Berechnungsprojekten ist es oft unumgänglich, eine grössere Zahl dieser Packages zu verwenden.
 Die allermeisten Packages sind zentral im Internet-Repositorium CRAN abgelegt und müssen vor einer ersten Benutzung in RStudio installiert werden. Dies geschieht mit dem Befehl `install.packages("<name>")` direkt in der Konsole (unten links, wo die Textausgabe von R erfolgt), wobei <name> natürlich für den Namen des Packages steht. Die `<>` werden nicht eingegeben und die Gross-/Kleinschreibung ist relevant.  
@@ -49,20 +52,21 @@ Für diese Vorlage müssen die folgenden Packages installiert werden:
 * lavaan
 * ...
 
-## Schreiben des Codes
-### Arbeiten in Projekten
+# Schreiben des Codes
+## Arbeiten in Projekten
 Es lohnt sich, in RStudio in *Projekten* zu arbeiten. Dazu geht man ins Menu File / New Project... und wählt ein neues Verzeichnis (new directory), wo man alle Daten und Source-Dateien ablegen kann. Arbeitet man in Projekten, hat man im Allgemeinen eine besser organisierte Dateiablage und weniger "Sorgen" mit falschen Pfadangaben.
 Wenn das Projekt erstellt wurde, kann mein eine neue R-Datei (File / New File / R Script) erstellen wo der nun folgende Code abgelegt wird.
 
-### Initialisation Packages
-In einem ersten Schritt werden die installierten Packages ins System geladen. Das geschieht mit dem folgenden Befehlsblock.
+## Initialisation Packages {.tabset}
+In einem ersten Schritt werden die installierten Packages ins System geladen. Das geschieht mit dem folgenden Befehlsblock (Code). Er erzeugt die Ausgabe im Reiter Output.
 
+### Code 
 ```{r Packages initialisieren Code, eval=FALSE}
 library(tidyverse)
 library(psych)
 library(rio)
 ```
-Der zu folgendem Output in der Konsole führt:
+### Output
 ```{r Packages initialisieren Output, echo=FALSE}
 library(tidyverse)
 library(psych)
@@ -81,11 +85,13 @@ Die importierte Tabelle ist folgendermassen aufgebaut (es werden nur die ersten 
 kable(datWPO[1:5,],caption="Tabelle datWPO")
 ```
 
-### Daten bereinigen und aufbereiten
+## Daten bereinigen und aufbereiten {.tabset}
 Als nächstes werden diese Rohdaten bereinigt und für die Berechnungen aufbereitet. Dazu sind mehrere Schritte erforderlich. 
 Als erstes muss man sich überlegen, wie man mit ungültigen Werten (die in R meist mit `NA` bezeichnet werden) umgeht. Es gibt hierfür verschiedene Methoden, vom Streichen der Fälle mit ungültigen Daten über Nullsetzen bis zur komplizierten Inputation. Je nach Projekt muss man sich gut überlegen, wie man am besten vorgeht. In diesen Beispieldaten kommen lediglich in einem Fall (Datensatz) NA-Werte vor, dafür gleich in allen Items. Damit können hier einfach alle Fälle (also dieser eine) mit ungültigen Daten entfernt werden. Dazu dient `na.omit()` (siehe untere Befehlszeile am Schluss).  
 Gleichzeitig werden auch nur die Spalten aus der Datentabelle übernommen, die für die Berechnung wirklich verwendet werden, also die Items der Skala (mit `starts_with("WPO")` werden im `select`-Befehl die Spalten, die mit WPO beginnen ausgewählt).  
-Weil damit die Verknüpfung der Daten mit der Person (Spalte `TN_ID`) verlorengeht, wird aber zuerst eine Datentabelle `datWPOHeader` erstellt, die genau diese Verknüpfung später wieder erlaubt. In diesem Header werden die ursprünglichen Zeilennummern in der Spalte `OrgRow`, die Zeilennummern der bereinigten Tabelle (ohne NA) in `CleanRow` und schliesslich auch die Kürzel der Lehrperson und die Teilnehmer-ID gespeichert. Der sogenannte "Pipe-Operator" `%>%` reicht dabei die jeweilige Datentabelle (in aktuellem Status!) an den nächsten Befehl weiter. Dadurch wird der Code übersichtlich und kurz und umgeht x-fach verschachtelte Funktionen. 
+Weil damit die Verknüpfung der Daten mit der Person (Spalte `TN_ID`) verlorengeht, wird aber zuerst eine Datentabelle `datWPOHeader` erstellt, die genau diese Verknüpfung später wieder erlaubt. In diesem Header werden die ursprünglichen Zeilennummern in der Spalte `OrgRow`, die Zeilennummern der bereinigten Tabelle (ohne NA) in `CleanRow` und schliesslich auch die Kürzel der Lehrperson und die Teilnehmer-ID gespeichert. Der sogenannte "Pipe-Operator" `%>%` reicht dabei die jeweilige Datentabelle (in aktuellem Status!) an den nächsten Befehl weiter. Dadurch wird der Code übersichtlich und kurz und umgeht x-fach verschachtelte Funktionen.   
+
+### Code 
 ```{r Datenbereinigung Code}
 datWPOheader <- datWPO %>% na.omit() %>% 
                 rownames_to_column(var = "OrgRow") %>% 
@@ -96,6 +102,7 @@ datWPOheader <- datWPO %>% na.omit() %>%
 datWPOonly <- datWPO %>% dplyr::select(starts_with("WPO")) %>% na.omit()
 ```
 
+### Erzeugte Tabellen
 ```{r Header und ohne Header, echo=FALSE}
 kable(datWPOheader[1:5,],caption="Tabelle datWPOheader")
 kable(datWPOonly[1:5,],,caption="Tabelle datWPOonly")
@@ -125,67 +132,68 @@ datWPOnorm <- datWPOonly %>% transmute(
 kable(datWPOnorm[1:5,],caption="Tabelle datWPOnorm")
 ```
 
-### Relevante statistische Kennwerte der Daten berechnen
-Schliesslich können aus diesen Daten nun statistische Kennwerte errechnet werden. Die meisten befinden sich im Package `psych`.  
+## Relevante statistische Kennwerte der Daten berechnen
+Schliesslich können aus diesen Daten nun statistische Kennwerte errechnet werden. Die meisten befinden sich im Package `psych`, auch `summarytools` leistet gute Dienste.  
+
+### Deskriptive Statistiken
+
+***Sind deskriptive Statistiken hier überhaupt relevant/dienlich?***
+
+### Cronbach's Alpha {.tabset}
+
 Lohnenswert ist sicher ein Blick auf die Cronbach's Alpha der Items. Auch hier wird das package `psych` explizit angegeben, damit nicht auf irgendeine andere Funktion alpha zugegriffen wird.
+
 ```{r Cronbachs Alpha}
 WPOcalpha <- psych::alpha(datWPOonly,check.keys = TRUE)
 ```
-Die Ergebnisse werden in der Variable `WPOcalpha` gespeichert. Diese Variable ist (verglichen mit Variablen im traditionellen Sinn), ein komplexes "Konglomerat" aus verschiedenen Teilvariablen (hier sind es Tabellen), auf die mit dem Dollarzeichen `$` zugegriffen werden kann:
 
+Die Ergebnisse werden in der Variable `WPOcalpha` gespeichert. Diese Variable ist (verglichen mit Variablen im traditionellen Sinn), ein komplexes "Konglomerat" aus verschiedenen Teilvariablen (hier sind es Tabellen), auf die mit dem Dollarzeichen `$` zugegriffen werden kann:  
+
+#### Tabelle item.stats
 Tabelle items.stats (Zugriff über `WPOcalpha$items.stats`): Item-Statistik der Skala in der Tabelle datWPOonly
 ```{r Cronbach Itemstats, echo=FALSE}
 kable(WPOcalpha$item.stats,digits = 3)
 ```
+Die exakten Bedeutungen der verschiedenen Werte erhält man, wenn man in der Konsole `?psych::alpha` eingibt.  
 
+#### Tabelle total
 Tabelle total (Zugriff über `WPOcalpha$total`): Cronbachs Alpha der gesamten Skala in datWPOonly
 ```{r Cronbach total, echo=FALSE}
 kable(WPOcalpha$total,digits = 3)
 ```
+Die exakten Bedeutungen der verschiedenen Werte erhält man, wenn man in der Konsole `?psych::alpha` eingibt.  
 
+#### Tabelle item.drop
 Tabelle items.drop (Zugriff über `WPOcalpha$items.drop`): Dieselben Daten für die Skala, falls ein Item weggelassen wird
 ```{r Cronbach drop, echo=FALSE}
 kable(WPOcalpha$alpha.drop,caption="Cronbachs Alpha der Items von datWPOonly",digits = 3)
 ```
 Die exakten Bedeutungen der verschiedenen Werte erhält man, wenn man in der Konsole `?psych::alpha` eingibt.  
 
-Für die nachfolgende Berechnung des Graded Response Models ist die Eindimensionalität eine Voraussetzung. Wir testen deshalb die Daten daraufhin.
+## Analyse der Itemstufen mit dem Graded Response Model
+
+***Ist die folgende Aussage korrekt?***  
+Nichtsdestotrotz lässt sich das Graded Response Model dafür verwenden, um zu eruieren, ob sich die theoretisch angenommenen und in der Datenerfassung verwendeten Item*stufen* tatsächlich auch strukturell nachweisen lassen und sie damit für weitere Berechnungen sinnvoll sind oder ob man sie reduzieren kann.  
+
+
+## Berechnung der Faktorwerte (Werte der Skala)
+
+### Eindimensionalität {.tabset}
+
+Für die nachfolgende Berechnung insbesondere des Graded Response Models ist die Eindimensionalität eine Voraussetzung. Wir testen deshalb die Daten daraufhin.
 In der Literatur gibt es dafür verschiedene beschriebene Verfahren. Hier werden drei angewendet:
 
 * Very Simply Structure vss (und gleichzeitig MAP)
 * Parallelenanalyse
 * CFA auf Eindimensionalität (alle Items laden auf denselben Faktor)
 
-```{r Eindimensionalität}
-#----------- Eindimensionalität testen --------------
-# very simple structure und MAP testen
+#### VSS
+Die Very Simple Structure berechnet gleichzeitig auch den Kennwert MAP.
+```{r VSS}
 WPOvss <- vss(datWPOnorm)
 WPOvss
-
-# Parallelenanalyse
-WPOparallel <- fa.parallel(datWPOnorm, fa="both")
-
-# CFA mit Lavaan auf 1 Faktor
-library(lavaan)
-
-# Rohdaten
-WPO.model <- ' wpo =~ WPO_1 + WPO_2 + WPO_3 + WPO_4 + WPO_5 + 
-                      WPO_6 + WPO_7 + WPO_8 + WPO_9 + WPO_10 + 
-                      WPO_11 + WPO_12 + WPO_13'
-
-WPO.fit <- cfa(WPO.model,data=datWPOonly)
-summary(WPO.fit, fit.measures=TRUE)
-
-# Normierte Daten (Spolier: Kein Unterschied im fit)
-WPOnorm.model <- ' wpo =~ WPO_1_norm + WPO_2_norm + WPO_3_norm + WPO_4_norm + WPO_5_norm + 
-                      WPO_6_norm + WPO_7_norm + WPO_8_norm + WPO_9_norm + WPO_10_norm + 
-                      WPO_11_norm + WPO_12_norm + WPO_13_norm'
-
-WPOnorm.fit <- cfa(WPOnorm.model,data=datWPOnorm)
-summary(WPOnorm.fit, fit.measures=TRUE)
 ```
-
-Jede Methode gibt unterschiedliche Kennwerte aus, die die Beurteilung der Annahme "die Daten sind eindimensional" erlauben. Bevor auf die Resultate eingegangen wird, soll auf dieser Stelle auf die Warnungen aufmerksam gemacht werden, die R ausgibt: Wir sehen z. B. bei der Funktion vss diese:
+An dieser Stelle soll auf die Warnungen aufmerksam gemacht werden, die R ausgibt: Wir sehen z. B. bei der Funktion vss diese:
 
 ```
 ## Warning in fac(r = r, nfactors = nfactors, n.obs = n.obs, rotate = rotate, : An
@@ -193,11 +201,37 @@ Jede Methode gibt unterschiedliche Kennwerte aus, die die Beurteilung der Annahm
 ```
 Diese Warnungen sollten nicht ignorniert werden, sondern es muss eine genaue Analyse erfolgen, weshalb sie ausgegeben wurde.
 
-## Berechnung der Skalenwerte nach klassischer Faktoranalyse
+#### Parallelenanalyse
+Die Parallelenanalyse ist eines der bekanntesten Verfahren. In R wird automatisch auch die Grafik dazu gezeichnet.
+```{r Parallel}
+WPOparallel <- fa.parallel(datWPOnorm, fa="both")
+```
 
+#### Konfirmatorische Faktorenanalyse
+Als eines der zuverlässigsten Verfahren zur Bestätigung der Eindimensionalität können diese mit der CFA überprüft werden. Man erstellt einfach ein Modell mit nur einem Faktor.
 
-## Berechnung der Skalenwerte nach Graded Response Model
+```{r cfa}
+library(lavaan)
+
+WPO.model <- ' wpo =~ WPO_1 + WPO_2 + WPO_3 + WPO_4 + WPO_5 + 
+                      WPO_6 + WPO_7 + WPO_8 + WPO_9 + WPO_10 + 
+                      WPO_11 + WPO_12 + WPO_13'
+
+WPO.fit <- cfa(WPO.model,data=datWPOonly)
+summary(WPO.fit, fit.measures=TRUE)
+```
+
+###   
+Die Auswertung aller drei Berechnungsarten legt nahe, dass die vorliegende Skala nicht eindimensional ist.  
+
+### Reduzierung der Skala auf eindimensionale Teilskala
+
+Weiterführende Auswertungen der Skala WPO haben gezeigt, das die Teilskala WPO_7 bis WPO_13 die statistischen Kriterien für Eindimensionalität in hohem Mass erfüllt. Auch aus der Perspektive der inhaltlichen Validität passen diese Items gut zusammen, sie könnten als "Anwendung des Primzahlbegriffs" beschrieben werden.  
+Weil für die Berechnung der Skalenwerte insbesondere mit dem Graded Response Model Eindimensionalität eine wichtige Voraussetzung ist, wird für die weitere Beschreibung dieser Methoden nur mir dieser Teilskala weitergerechnet.
+
+### Berechnung der Faktorwerte nach klassischer Faktoranalyse
+### Berechnung der Faktorwerte nach Graded Response Model
 ## Darstellung der Daten in Diagrammen
-## Abschliessende Bemerkungen
+# Abschliessende Bemerkungen
 
 
